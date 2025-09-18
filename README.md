@@ -214,6 +214,7 @@ docker run -d -p 8080:80 --name mynginx ubuntu bash -c "apt-get update && apt-ge
 
 ---
 
+
 ## ✅ Done!
 
 You now have **Ubuntu + Nginx running in Docker**, accessible at:
@@ -224,5 +225,245 @@ You can customize configs under `/etc/nginx/` and HTML files under `/var/www/htm
 
 
 ---
+
+# 📖 Nginx File & Directory Structure with Examples
+
+This guide explains the purpose of each important Nginx file/directory and provides examples for better understanding.
+
+---
+
+## 📂 File & Directory Overview
+
+### 1. `/etc/nginx/nginx.conf` → Main Config File
+Controls global settings, worker processes, and includes other configs.
+
+```nginx
+user nginx;
+worker_processes auto;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent"';
+
+    access_log /var/log/nginx/access.log main;
+    error_log  /var/log/nginx/error.log warn;
+
+    include /etc/nginx/conf.d/*.conf;   # Load all configs from conf.d
+}
+````
+
+---
+
+### 2. `/etc/nginx/conf.d/` → Extra Configs
+
+Files here are auto-loaded. Each `.conf` usually contains a **server block**.
+
+**Example: `/etc/nginx/conf.d/myapp.conf`**
+
+```nginx
+server {
+    listen 80;
+    server_name myapp.local;
+
+    root /var/www/myapp;
+    index index.html index.htm;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
+```
+
+---
+
+### 3. `/etc/nginx/sites-available/` (Debian/Ubuntu only)
+
+Holds **all possible sites**, but not active until symlinked.
+
+**Example: `/etc/nginx/sites-available/example.com`**
+
+```nginx
+server {
+    listen 80;
+    server_name example.com www.example.com;
+
+    root /var/www/example.com;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
+```
+
+Enable it:
+
+```bash
+ln -s /etc/nginx/sites-available/example.com /etc/nginx/sites-enabled/
+```
+
+---
+
+### 4. `/etc/nginx/sites-enabled/` (Debian/Ubuntu only)
+
+Contains **symlinks** to active sites.
+
+```bash
+/etc/nginx/sites-enabled/example.com -> ../sites-available/example.com
+```
+
+---
+
+### 5. `/etc/nginx/modules-enabled/` → Dynamic Modules
+
+Defines which extra modules to load.
+
+**Example:**
+
+```nginx
+load_module modules/ngx_http_image_filter_module.so;
+```
+
+---
+
+### 6. `/etc/nginx/mime.types` → File Type Mapping
+
+Ensures correct `Content-Type` headers are sent.
+
+**Example (snippet):**
+
+```nginx
+types {
+    text/html   html htm;
+    text/css    css;
+    text/javascript js;
+    image/jpeg  jpeg jpg;
+    application/json json;
+}
+```
+
+---
+
+### 7. `/etc/nginx/snippets/` → Reusable Configs
+
+Reusable blocks included inside other configs.
+
+**Example: `/etc/nginx/snippets/ssl-params.conf`**
+
+```nginx
+ssl_protocols TLSv1.2 TLSv1.3;
+ssl_prefer_server_ciphers on;
+ssl_ciphers HIGH:!aNULL:!MD5;
+```
+
+Include it:
+
+```nginx
+server {
+    listen 443 ssl;
+    include snippets/ssl-params.conf;
+}
+```
+
+---
+
+### 8. `/usr/sbin/nginx` → Nginx Executable
+
+The actual binary. Useful commands:
+
+```bash
+nginx -t        # test config
+nginx -s reload # reload service
+```
+
+---
+
+### 9. `/var/log/nginx/` → Logs
+
+* `access.log` → every request
+* `error.log` → errors and issues
+
+**Example Log Entry:**
+
+```
+192.168.1.1 - - [19/Sep/2025:05:30:22 +0530] "GET /index.html HTTP/1.1" 200 512 "-" "Mozilla/5.0"
+```
+
+---
+
+### 10. `/var/www/` → Website Files
+
+Default document root.
+
+**Example: `/var/www/html/index.html`**
+
+```html
+<!DOCTYPE html>
+<html>
+<head><title>Welcome</title></head>
+<body>
+    <h1>Hello from Nginx!</h1>
+</body>
+</html>
+```
+
+---
+
+### 11. `/lib/systemd/system/nginx.service` → Service File
+
+Controls start/stop/restart with `systemctl`.
+
+**Example:**
+
+```ini
+[Unit]
+Description=A high performance web server and a reverse proxy server
+After=network.target
+
+[Service]
+ExecStart=/usr/sbin/nginx -g 'daemon off;'
+ExecReload=/usr/sbin/nginx -s reload
+PIDFile=/run/nginx.pid
+
+[Install]
+WantedBy=multi-user.target
+```
+
+---
+
+### 12. `/run/nginx.pid` → PID File
+
+Stores the process ID of the main Nginx process.
+
+**Check PID:**
+
+```bash
+cat /run/nginx.pid
+```
+
+---
+
+## ✅ Summary
+
+* **`nginx.conf`** → global settings
+* **`conf.d/`** → active site configs
+* **`sites-available` + `sites-enabled`** → enable/disable virtual hosts (Debian/Ubuntu)
+* **`snippets/`** → reusable configs (SSL, PHP, etc.)
+* **`mime.types`** → file type mappings
+* **`logs/`** → access & error logs
+* **`www/`** → website files
+* **systemd files** → service management
+
+---
+
+
 
 
